@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Jobify
 Track Your Job Search
 Project in Action - Jobify
@@ -4686,3 +4687,6 @@ git init
 git add .
 git commit -m "first commit"
 push up to Github
+=======
+# MERN-project
+>>>>>>> d009e84acf660952f4ca4d550965b2c87b533af5
