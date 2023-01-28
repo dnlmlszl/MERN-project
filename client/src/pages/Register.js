@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Logo, FormRow, Alert } from "../components";
 import Wrapper from "../assets/wrappers/RegisterPage";
 import { useAppContext } from "../context/appContext";
-import { useNavigate } from "react-router-dom"
-
+import { useNavigate } from "react-router-dom";
 
 const initialState = {
   name: "",
@@ -13,41 +12,56 @@ const initialState = {
 };
 
 const Register = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [values, setValues] = useState(initialState);
-  const { user, isLoading, showAlert, displayAlert, registerUser } = useAppContext()
+  const {
+    user,
+    isLoading,
+    showAlert,
+    displayAlert,
+    registerUser,
+    loginUser,
+    setupUser,
+  } = useAppContext();
 
   // global state and useNavigate
   const toggleMember = () => {
     setValues({ ...values, isMember: !values.isMember });
   };
   const handleChange = (e) => {
-    setValues({ ...values, [e.target.name]: e.target.value })
+    setValues({ ...values, [e.target.name]: e.target.value });
   };
 
   const onSubmit = (e) => {
     e.preventDefault();
-    const { name, email, password, isMember } = values
+    const { name, email, password, isMember } = values;
     if (!email || !password || (!isMember && !name)) {
-      displayAlert()
-      return
+      displayAlert();
+      return;
     }
-    const currentUser = { name, email, password}
+    const currentUser = { name, email, password };
     if (isMember) {
-      console.log("already a member");
-    }
-    else {
-      registerUser(currentUser)
+      setupUser({
+        currentUser,
+        endPoint: "login",
+        alertText: "Login Successful! Redirecting...",
+      });
+    } else {
+      setupUser({
+        currentUser,
+        endPoint: "register",
+        alertText: "User created! Redirecting...",
+      });
     }
   };
 
   useEffect(() => {
     if (user) {
       setTimeout(() => {
-        navigate('/')
-      }, 3000)
+        navigate("/");
+      }, 3000);
     }
-  }, [user, navigate])
+  }, [user, navigate]);
 
   return (
     <Wrapper className="full-page">
