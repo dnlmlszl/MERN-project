@@ -34,6 +34,7 @@ import {
   GET_CURRENT_USER_BEGIN,
   GET_CURRENT_USER_SUCCESS,
 } from "./actions";
+import { config } from "dotenv";
 
 const token = localStorage.getItem("token");
 const userLocation = localStorage.getItem("location");
@@ -49,11 +50,59 @@ const initialState = {
   userLocation: userLocation || "",
   jobLocation: userLocation || "",
   showSidebar: false,
+  isEditing: false,
+  editJobId: "",
+  position: "",
+  company: "",
+  // jobLocation
+  jobTypeOptions: ["full-time", "part-time", "remote", "internship"],
+  jobType: "full-time",
+  statusOptions: ["pending", "interview", "declined"],
+  status: "pending",
+  jobs: [],
+  totalJobs: 0,
+  numOfPages: 1,
+  page: 1,
+  stats: {},
+  monthlyApplications: [],
 };
 
 const AppContext = React.createContext();
 const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  // axios.defaults.headers['Authorization'] = `Bearer ${state.token}`
+  const authFetch = axios.create({
+    baseURL: "/api/v1",
+    // headers: {
+    //   Authorization: `Bearer ${state.token}`
+    // }
+  });
+
+  // request
+  authFetch.interceptors.request.use(
+    (config) => {
+      config.headers["Authorization"] = `Bearer ${state.token}`;
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // response
+  authFetch.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    (error) => {
+      // console.log(error.response);
+      if (error.response.status === 401) {
+        logoutUser();
+      }
+      return Promise.reject(error);
+    }
+  );
 
   const displayAlert = () => {
     dispatch({ type: DISPLAY_ALERT });
@@ -80,10 +129,13 @@ const AppProvider = ({ children }) => {
     localStorage.removeItem("location");
   };
 
-  const setupUser = async ({currentUser, endPoint, alertText}) => {
+  const setupUser = async ({ currentUser, endPoint, alertText }) => {
     dispatch({ type: SETUP_USER_BEGIN });
     try {
-      const { data } = await axios.post(`/api/v1/auth/${endPoint}`, currentUser);
+      const { data } = await axios.post(
+        `/api/v1/auth/${endPoint}`,
+        currentUser
+      );
       const { user, token, location } = data;
 
       dispatch({
@@ -102,17 +154,153 @@ const AppProvider = ({ children }) => {
   };
 
   const toggleSidebar = () => {
-    dispatch({ type: TOGGLE_SIDEBAR })
-  }
+    dispatch({ type: TOGGLE_SIDEBAR });
+  };
 
   const logoutUser = () => {
-    dispatch({ type: LOGOUT_USER })
-    removeUserFromLocalStorage()
-  }
+    dispatch({ type: LOGOUT_USER });
+    removeUserFromLocalStorage();
+  };
 
   const updateUser = async (currentUser) => {
-    console.log(currentUser);
+    dispatch({ type: UPDATE_USER_BEGIN });
+    try {
+      const { data } = await authFetch.patch("/auth/updateUser", currentUser);
+
+      const { user, location, token } = data;
+
+      dispatch({
+        type: UPDATE_USER_SUCCESS,
+        payload: { user, location, token },
+      });
+      // console.log(data);
+      addUserToLocalStorage({ user, location, token });
+    } catch (error) {
+      if (error.response.status !== 401) {
+        dispatch({
+          type: UPDATE_USER_ERROR,
+          payload: { msg: error.response.data.msg },
+        });
+      }
+      //  console.log(error.response);
+    }
+    clearAlert();
+  };
+
+  const handleChange = ({ name, value }) => {
+    dispatch({
+      type: HANDLE_CHANGE,
+      payload: { name, value },
+    });
+  };
+
+  const clearValues = () => {
+    dispatch({ type: CLEAR_VALUES });
+  };
+
+  const createJob = async () => {
+    dispatch({ type: CREATE_JOB_BEGIN });
+    try {
+      const { position, company, jobLocation, jobType, status } = state;
+      await authFetch.post("/jobs", {
+        position,
+        company,
+        jobLocation,
+        jobType,
+        status,
+      });
+      dispatch({ type: CREATE_JOB_SUCCESS });
+      dispatch({ type: CLEAR_VALUES });
+    } catch (error) {
+      if (error.response.status === 401) return;
+      dispatch({
+        type: CREATE_JOB_ERROR,
+        payload: { msg: error.response.data.msg },
+      });
+    }
+    clearAlert();
+  };
+
+  const getJobs = async () => {
+    let url = `/jobs`;
+
+    dispatch({ type: GET_JOBS_BEGIN });
+    try {
+      const { data } = await authFetch(url);
+      const { jobs, totalJobs, numOfPages } = data;
+      dispatch({
+        type: GET_JOBS_SUCCESS,
+        payload: {
+          jobs,
+          totalJobs,
+          numOfPages,
+        },
+      });
+    } catch (error) {
+      console.log(error.response);
+      //logoutUser();
+    }
+    clearAlert();
+  };
+
+  const setEditJob = (id) => {
+    dispatch({type: SET_EDIT_JOB, payload: { id }})
   }
+
+  const editJob = async () => {
+    dispatch({ type: EDIT_JOB_BEGIN })
+    try {
+      const { position, company, jobLocation, jobType, status } = state
+      
+      await authFetch.patch(`/jobs/${state.editJobId}`, {
+        company,
+        position,
+        jobLocation,
+        jobType,
+        status
+      })
+      dispatch({
+        type: EDIT_JOB_SUCCESS,
+      });
+      dispatch({ type: CLEAR_VALUES });
+    } catch (error) {
+      if (error.response.status === 401) return;
+      dispatch({
+        type: EDIT_JOB_ERROR,
+        payload: { msg: error.response.data.msg },
+      });
+    }
+    clearAlert()
+  }
+
+  const deleteJob = async (jobId) => {
+    dispatch({ type: DELETE_JOB_BEGIN })
+    try {
+      await authFetch.delete(`/jobs/${jobId}`)
+      getJobs()
+    } catch (error) {
+      logoutUser()
+    }
+  }
+
+  const showStats = async () => {
+    dispatch({ type: SHOW_STATS_BEGIN })
+    try {
+      const { data } = await authFetch("/jobs/stats")
+      dispatch({
+        type: SHOW_STATS_SUCCESS,
+        payload: {
+          stats: data.defaultStats,
+          monthlyApplications: data.monthlyApplications
+        }
+      })
+    } catch (error) {
+      console.log(error.response);
+      // logoutUser()
+    }
+    clearAlert()
+  }
+  
 
   return (
     <AppContext.Provider
@@ -122,7 +310,15 @@ const AppProvider = ({ children }) => {
         setupUser,
         toggleSidebar,
         logoutUser,
-        updateUser
+        updateUser,
+        handleChange,
+        clearValues,
+        createJob,
+        getJobs,
+        setEditJob,
+        deleteJob,
+        editJob,
+        showStats
       }}
     >
       {children}
