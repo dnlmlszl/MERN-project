@@ -38,7 +38,7 @@ const PageBtnContainer = () => {
               type="button"
               className={pageNumber === page ? "pageBtn active" : "pageBtn"}
               key={pageNumber}
-              onClick={() => changePage(page)}
+              onClick={() => changePage(pageNumber)}
             >
               {pageNumber}
             </button>
