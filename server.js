@@ -30,13 +30,13 @@ if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"))
 }
 
-app.get("/", (req, res) => {
-  res.json({ msg: "Welcome!" });
-});
+// app.get("/", (req, res) => {
+//   res.json({ msg: "Welcome!" });
+// });
 
-app.get("/api/v1", (req, res) => {
-  res.json({ msg: "API" });
-});
+// app.get("/api/v1", (req, res) => {
+//   res.json({ msg: "API" });
+// });
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
